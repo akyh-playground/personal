@@ -32,9 +32,15 @@ h1 {
 
 .hud {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
   margin: 1rem 0;
   font-size: 1.1rem;
+}
+
+.hud span {
+  white-space: nowrap;
 }
 
 #game-board {

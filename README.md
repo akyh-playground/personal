@@ -17,4 +17,8 @@ Then open <http://localhost:8000> in your browser.
 - Arrow keys or `W/A/S/D`: Move the snake
 - Restart button: Reset the game
 
-Eat food to grow, wrap through walls, and beat your best score.
+## Gameplay notes
+
+- The snake starts longer for a slightly more challenging opening.
+- Moving through a wall wraps your snake to the opposite side.
+- Obstacles begin on the board and increase over time (every 3 food eaten), so the game gets harder as you score.
