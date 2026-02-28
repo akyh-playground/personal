@@ -121,15 +121,12 @@ function step() {
     y: head.y + direction.y
   };
 
-  const hitWall =
-    nextHead.x < 0 ||
-    nextHead.x >= gridSize ||
-    nextHead.y < 0 ||
-    nextHead.y >= gridSize;
+  nextHead.x = (nextHead.x + gridSize) % gridSize;
+  nextHead.y = (nextHead.y + gridSize) % gridSize;
 
   const hitSelf = snake.some((segment) => segment.x === nextHead.x && segment.y === nextHead.y);
 
-  if (hitWall || hitSelf) {
+  if (hitSelf) {
     gameOver = true;
     statusMessage.textContent = 'Game over! Press Restart to play again.';
     draw();
