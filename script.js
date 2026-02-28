@@ -3,15 +3,18 @@ const ctx = board.getContext('2d');
 const scoreLabel = document.getElementById('score');
 const bestScoreLabel = document.getElementById('best-score');
 const obstacleCountLabel = document.getElementById('obstacle-count');
+const speedLevelLabel = document.getElementById('speed-level');
 const restartButton = document.getElementById('restart-btn');
 const statusMessage = document.getElementById('status');
 
 const gridSize = 20;
 const tileSize = board.width / gridSize;
-const tickRateMs = 120;
-const initialSnakeLength = 5;
-const baseObstacleCount = 3;
-const obstacleIncreaseEvery = 3;
+const baseTickRateMs = 140;
+const minTickRateMs = 70;
+const speedIncreaseEvery = 2;
+const speedStepMs = 7;
+const initialSnakeLength = 7;
+const obstacleIncreaseEvery = 2;
 const maxObstacleCount = 45;
 
 let snake;
@@ -24,6 +27,7 @@ let bestScore;
 let gameOver;
 let gameStarted;
 let loopId;
+let currentTickRateMs;
 
 function loadBestScore() {
   const stored = Number(localStorage.getItem('snake-best-score'));
@@ -36,6 +40,20 @@ function saveBestScore(value) {
 
 function tileKey(tile) {
   return `${tile.x},${tile.y}`;
+}
+
+function getSpeedLevelForScore(value) {
+  return 1 + Math.floor(value / speedIncreaseEvery);
+}
+
+function getTickRateForScore(value) {
+  const speedLevel = getSpeedLevelForScore(value);
+  const reduction = (speedLevel - 1) * speedStepMs;
+  return Math.max(minTickRateMs, baseTickRateMs - reduction);
+}
+
+function updateSpeedLabel() {
+  speedLevelLabel.textContent = `Lv ${getSpeedLevelForScore(score)}`;
 }
 
 function createInitialSnake() {
@@ -105,11 +123,8 @@ function addObstacle() {
   return true;
 }
 
-function syncObstacleDifficulty() {
-  const targetCount = Math.min(
-    maxObstacleCount,
-    baseObstacleCount + Math.floor(score / obstacleIncreaseEvery)
-  );
+function syncDifficulty() {
+  const targetCount = Math.min(maxObstacleCount, Math.floor(score / obstacleIncreaseEvery));
 
   while (obstacles.length < targetCount) {
     if (!addObstacle()) {
@@ -118,6 +133,14 @@ function syncObstacleDifficulty() {
   }
 
   updateObstacleLabel();
+
+  const nextTickRate = getTickRateForScore(score);
+  if (nextTickRate !== currentTickRateMs) {
+    currentTickRateMs = nextTickRate;
+    startLoop();
+  }
+
+  updateSpeedLabel();
 }
 
 function resetGame() {
@@ -129,29 +152,136 @@ function resetGame() {
   score = 0;
   gameOver = false;
   gameStarted = false;
+  currentTickRateMs = getTickRateForScore(score);
 
-  for (let i = 0; i < baseObstacleCount; i += 1) {
-    if (!addObstacle()) {
-      break;
-    }
-  }
-
-  updateObstacleLabel();
+  syncDifficulty();
   food = randomFreeTile();
   scoreLabel.textContent = String(score);
   statusMessage.textContent = 'Press any movement key to begin.';
 
   if (!food) {
     gameOver = true;
-    statusMessage.textContent = 'No space left to spawn food. Press Restart to try again.';
+    statusMessage.textContent = 'No space left to spawn food. Press any key to restart.';
   }
 
   draw();
 }
 
-function drawTile(x, y, color) {
+function tileCenter(tile) {
+  return {
+    x: tile.x * tileSize + tileSize / 2,
+    y: tile.y * tileSize + tileSize / 2
+  };
+}
+
+function drawCircle(tile, color, scale, offsetX = 0, offsetY = 0) {
+  const center = tileCenter(tile);
+  const radius = tileSize * scale;
+
   ctx.fillStyle = color;
-  ctx.fillRect(x * tileSize + 1, y * tileSize + 1, tileSize - 2, tileSize - 2);
+  ctx.beginPath();
+  ctx.arc(center.x + tileSize * offsetX, center.y + tileSize * offsetY, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function normalizeWrapDelta(value) {
+  if (value > gridSize / 2) {
+    return value - gridSize;
+  }
+
+  if (value < -gridSize / 2) {
+    return value + gridSize;
+  }
+
+  return value;
+}
+
+function directionBetween(fromTile, toTile) {
+  const rawX = normalizeWrapDelta(toTile.x - fromTile.x);
+  const rawY = normalizeWrapDelta(toTile.y - fromTile.y);
+
+  if (Math.abs(rawX) >= Math.abs(rawY)) {
+    return { x: Math.sign(rawX), y: 0 };
+  }
+
+  return { x: 0, y: Math.sign(rawY) };
+}
+
+function drawWhaleHead(head) {
+  drawCircle(head, '#38bdf8', 0.46);
+  drawCircle(head, '#e0f2fe', 0.24, 0, 0.18);
+
+  const eyeOffset = {
+    x: direction.x * 0.16 + (direction.y !== 0 ? 0.12 : 0),
+    y: direction.y * 0.16 - (direction.x !== 0 ? 0.12 : 0)
+  };
+
+  drawCircle(head, '#ffffff', 0.075, eyeOffset.x, eyeOffset.y);
+  drawCircle(head, '#0f172a', 0.038, eyeOffset.x + direction.x * 0.02, eyeOffset.y + direction.y * 0.02);
+}
+
+function drawWhaleBody(segment, index) {
+  const bodyColor = index % 2 === 0 ? '#0ea5e9' : '#38bdf8';
+  drawCircle(segment, bodyColor, 0.41);
+  drawCircle(segment, '#dbeafe', 0.2, 0, 0.15);
+}
+
+function drawWhaleTail(tail, previousSegment) {
+  drawCircle(tail, '#0ea5e9', 0.37);
+
+  let outward = directionBetween(previousSegment, tail);
+  if (outward.x === 0 && outward.y === 0) {
+    outward = { x: -direction.x, y: -direction.y };
+  }
+
+  const center = tileCenter(tail);
+  const tipX = center.x + outward.x * tileSize * 0.44;
+  const tipY = center.y + outward.y * tileSize * 0.44;
+  const perp = { x: -outward.y, y: outward.x };
+
+  ctx.fillStyle = '#7dd3fc';
+  ctx.beginPath();
+  ctx.moveTo(tipX + perp.x * tileSize * 0.17, tipY + perp.y * tileSize * 0.17);
+  ctx.lineTo(center.x + outward.x * tileSize * 0.08, center.y + outward.y * tileSize * 0.08);
+  ctx.lineTo(tipX - perp.x * tileSize * 0.17, tipY - perp.y * tileSize * 0.17);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawObstacle(obstacle) {
+  const x = obstacle.x * tileSize + 2;
+  const y = obstacle.y * tileSize + 2;
+  const size = tileSize - 4;
+
+  ctx.fillStyle = '#f87171';
+  ctx.fillRect(x, y, size, size);
+  ctx.fillStyle = '#fecaca';
+  ctx.fillRect(x + 4, y + 4, Math.max(2, size * 0.25), Math.max(2, size * 0.25));
+}
+
+function drawFood() {
+  if (!food) {
+    return;
+  }
+
+  drawCircle(food, '#fb923c', 0.34);
+  drawCircle(food, '#fed7aa', 0.16, -0.1, -0.1);
+}
+
+function drawSnake() {
+  snake.forEach((segment, index) => {
+    if (index === 0) {
+      drawWhaleHead(segment);
+      return;
+    }
+
+    if (index === snake.length - 1) {
+      drawWhaleTail(segment, snake[index - 1]);
+      return;
+    }
+
+    drawWhaleBody(segment, index);
+  });
 }
 
 function draw() {
@@ -159,17 +289,11 @@ function draw() {
   ctx.fillRect(0, 0, board.width, board.height);
 
   obstacles.forEach((obstacle) => {
-    drawTile(obstacle.x, obstacle.y, '#f7768e');
+    drawObstacle(obstacle);
   });
 
-  if (food) {
-    drawTile(food.x, food.y, '#ef9f76');
-  }
-
-  snake.forEach((segment, index) => {
-    const color = index === 0 ? '#a6da95' : '#8bd5ca';
-    drawTile(segment.x, segment.y, color);
-  });
+  drawFood();
+  drawSnake();
 }
 
 function setDirection(next) {
@@ -183,7 +307,7 @@ function setDirection(next) {
   }
 }
 
-function handleInput(event) {
+function directionFromKey(key) {
   const map = {
     ArrowUp: { x: 0, y: -1 },
     ArrowDown: { x: 0, y: 1 },
@@ -195,17 +319,40 @@ function handleInput(event) {
     d: { x: 1, y: 0 }
   };
 
-  const key = event.key;
-  const next = map[key] || map[key.toLowerCase()];
-  if (next) {
+  if (typeof key !== 'string') {
+    return null;
+  }
+
+  return map[key] || map[key.toLowerCase()] || null;
+}
+
+function handleInput(event) {
+  const nextDirection = directionFromKey(event.key);
+
+  if (gameOver) {
     event.preventDefault();
-    setDirection(next);
+    resetGame();
+    gameStarted = true;
+    statusMessage.textContent = '';
+
+    if (nextDirection) {
+      direction = nextDirection;
+      queuedDirection = nextDirection;
+    }
+
+    return;
+  }
+
+  if (nextDirection) {
+    event.preventDefault();
+    setDirection(nextDirection);
   }
 }
 
 function endGame(message) {
   gameOver = true;
-  statusMessage.textContent = message;
+  gameStarted = false;
+  statusMessage.textContent = `${message} Press any key to restart.`;
   draw();
 }
 
@@ -252,11 +399,11 @@ function step() {
       saveBestScore(bestScore);
     }
 
-    syncObstacleDifficulty();
+    syncDifficulty();
     food = randomFreeTile();
 
     if (!food) {
-      endGame('You win! No free tiles left. Press Restart to play again.');
+      endGame('You win! No free tiles left.');
       return;
     }
   } else {
@@ -271,7 +418,7 @@ function startLoop() {
     clearInterval(loopId);
   }
 
-  loopId = setInterval(step, tickRateMs);
+  loopId = setInterval(step, currentTickRateMs);
 }
 
 bestScore = loadBestScore();
