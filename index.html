@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Snake</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Snake</h1>
+      <p class="instructions">
+        Use <strong>Arrow keys</strong> or <strong>WASD</strong> to move. Eat food to grow and
+        wrap through walls.
+      </p>
+
+      <section class="hud" aria-live="polite">
+        <span>Score: <strong id="score">0</strong></span>
+        <span>Best: <strong id="best-score">0</strong></span>
+      </section>
+
+      <canvas
+        id="game-board"
+        width="400"
+        height="400"
+        role="img"
+        aria-label="Snake game board"
+      ></canvas>
+
+      <div class="actions">
+        <button id="restart-btn" type="button">Restart</button>
+      </div>
+
+      <p id="status" class="status">Press any movement key to begin.</p>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
