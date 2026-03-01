@@ -1,26 +1,26 @@
-# Snake Whale Game
+# Click Counter Web App
 
-A simple browser-based Snake game made with HTML, CSS, and vanilla JavaScript.
+A tiny click counter built with plain HTML, CSS, and JavaScript.
 
-## Run locally
+## Features
 
-Because this project uses `localStorage`, serve it with a local HTTP server:
+- Click a button to increase the counter.
+- The current count is saved in `localStorage`.
+- The count is restored after page refresh.
 
-```bash
-python3 -m http.server 8000
-```
+## How to run
 
-Then open <http://localhost:8000> in your browser.
+1. Open a terminal in this folder.
+2. Start a local server:
 
-## Controls
+   ```bash
+   python3 -m http.server 8000
+   ```
 
-- Arrow keys or `W/A/S/D`: Move the whale-snake
-- Any key after game-over: Instantly restart
-- Restart button: Reset the game
+3. Visit <http://localhost:8000> in your browser.
 
-## Gameplay notes
+## Files
 
-- The snake starts longer and is rendered as a whale-inspired creature.
-- Moving through a wall wraps your whale-snake to the opposite side.
-- Obstacles start at zero and progressively appear as your score increases.
-- Snake speed increases as the game continues.
+- `index.html` - page structure
+- `style.css` - basic styling
+- `script.js` - counter logic and `localStorage` persistence
